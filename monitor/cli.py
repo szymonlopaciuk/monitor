@@ -4,35 +4,11 @@ import requests
 from datetime import datetime
 from typing import Optional
 from dateutil.parser import parse as parse_date
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
+from .display import clear, display
+from .style import ColorScheme, Font
 
-class ColorScheme:
-    BLACK = 0
-    ACCENT = 1
-    WHITE = 2
-    BLACK_RGB = (0, 0, 0)
-    ACCENT_RGB = (255, 0, 0)
-    WHITE_RGB = (255, 255, 255)
-
-    @classmethod
-    def make_palette(cls):
-        color_map = {
-            cls.BLACK: cls.BLACK_RGB,
-            cls.ACCENT: cls.ACCENT_RGB,
-            cls.WHITE: cls.WHITE_RGB,
-        }
-
-        palette = [0, 0, 0] * 255
-        for color_id, rgb in color_map.items():
-            palette[color_id * 3:color_id * 3 + 3] = rgb
-
-        return palette
-
-
-class Font:
-    H1 = ImageFont.truetype('Inter-Bold', 24)
-    BODY = ImageFont.truetype('Inter-Medium', 26)
 
 def date_or_none(datetime_string: Optional[str]) -> Optional[datetime]:
     if not datetime_string:
@@ -60,9 +36,9 @@ def get_departures():
         yield name, scheduled, exp, to
 
 
-@click.command()
+@click.command('show')
 @click.option(
-    '-o', '--output', type=click.Choice(['pil', 'spi']),
+    '-o', '--output', type=click.Choice(['pil', 'edp']),
     default='pil',
     help='How to display the image',
 )
@@ -91,5 +67,14 @@ def run(output):
             #draw.text((600, y), f'{delay:+}\'', font=Font.BODY, fill=Color.ACCENT)
             draw.text((600, y), f'exp. {exp:%H:%M}', font=Font.BODY, fill=ColorScheme.ACCENT)
 
-    if output == 'pil':
-        im.show()
+    display(im, output)
+
+
+@click.command('clear')
+@click.option(
+    '-o', '--output', type=click.Choice(['pil', 'edp']),
+    default='pil',
+    help='How to display the image',
+)
+def clear(output):
+    clear(output)
