@@ -6,7 +6,7 @@ from typing import Optional
 from dateutil.parser import parse as parse_date
 from PIL import Image, ImageDraw
 
-from .display import clear, display
+from .display import display_clear, display_show
 from .style import ColorScheme, Font
 
 
@@ -36,7 +36,13 @@ def get_departures():
         yield name, scheduled, exp, to
 
 
-@click.command('show')
+@click.group()
+def entrypoint():
+    """Monitor CLI interface."""
+    pass
+
+
+@entrypoint.command('run')
 @click.option(
     '-o', '--output', type=click.Choice(['pil', 'edp']),
     default='pil',
@@ -67,14 +73,14 @@ def run(output):
             #draw.text((600, y), f'{delay:+}\'', font=Font.BODY, fill=Color.ACCENT)
             draw.text((600, y), f'exp. {exp:%H:%M}', font=Font.BODY, fill=ColorScheme.ACCENT)
 
-    display(im, output)
+    display_show(im, output)
 
 
-@click.command('clear')
+@entrypoint.command('clear')
 @click.option(
     '-o', '--output', type=click.Choice(['pil', 'edp']),
     default='pil',
-    help='How to display the image',
+    help='Which display to clear',
 )
 def clear(output):
-    clear(output)
+    display_clear(output)

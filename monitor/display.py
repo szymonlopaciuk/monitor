@@ -4,7 +4,7 @@ from typing import Literal
 from .style import ColorScheme
 
 
-def display(quantized_im: Image, output: Literal['epd', 'pil']):
+def display_show(quantized_im: Image, output: Literal['epd', 'pil']):
     if output == 'pil':
         quantized_im.show()
         return
@@ -17,11 +17,11 @@ def display(quantized_im: Image, output: Literal['epd', 'pil']):
 
         black = quantized_im.point(lambda px: px != ColorScheme.BLACK, mode='1')
         red = quantized_im.point(lambda px: px != ColorScheme.ACCENT, mode='1')
-        epd.display(epd.getbuffer(black), epd.getbuffer(red))
+        epd.display_show(epd.getbuffer(black), epd.getbuffer(red))
         epd.sleep()
 
 
-def clear(output):
+def display_clear(output):
     if output == 'pil':
         return
 
