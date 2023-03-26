@@ -25,7 +25,7 @@ logger = getLogger(__name__)
 
 @click.group()
 def entrypoint():
-    """Monitor CLI interface."""
+    """A CLI interface for Monitor."""
     logging.basicConfig(
         level=logging.INFO,
         format='[%(asctime)s] %(name)s: %(message)s',
@@ -36,15 +36,15 @@ def entrypoint():
 @click.option(
     '-o', '--output', type=click.Choice(['pil', 'epd']),
     default='pil',
-    help='How to display the image',
+    help='How to display the image.',
 )
 @click.option(
     '-f', '--flip', default=False, is_flag=True,
-    help='If set, the image will be rotated by 180°',
+    help='If set, the image will be rotated by 180°.',
 )
 @click.option(
     '-t', '--transit-stop', required=True,
-    help='Name of the public transport stop or station to monitor',
+    help='Name of the public transport stop or station to monitor.',
 )
 @click.option(
     '-d', '--delay', default=0, type=int,
@@ -55,6 +55,7 @@ def entrypoint():
     ),
 )
 def run(output, flip, transit_stop, delay):
+    """Run the monitor."""
     logger.info('Running monitor')
 
     try:
@@ -257,4 +258,5 @@ def draw_everything(transit_stop):
     help='Which display to clear',
 )
 def clear(output):
+    """Clear the display, if it supports clearing."""
     display_clear(output)
