@@ -5,8 +5,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=pi
-WorkingDirectory=/home/pi/monitor
 ExecStart=/home/pi/.local/bin/poetry run monitor run -o epd -f -d 600 -t 'Meyrin, Village'
 Restart=always
 
