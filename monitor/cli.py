@@ -198,7 +198,7 @@ def draw_everything(transit_stop):
         if not rain:
             continue
         rain_h = y + chart_h - scale_rain(rain)
-        draw.rectangle((x, rain_h, x + 5, y + chart_h), fill=ColorScheme.BLACK)
+        draw.rectangle((x - 3, rain_h, x + 3, y + chart_h), fill=ColorScheme.BLACK)
     temps = [y + chart_h - scale_temp(t) for t in temps]
     draw.line(list(zip(xs, temps)), fill=ColorScheme.ACCENT, width=3)
     char_half = Font.BODY.getsize('X')[1] / 2
@@ -212,14 +212,14 @@ def draw_everything(transit_stop):
               valign='top')
     _y = y
     for i, t in enumerate(times):
-        if i % (len(temps) / 6) == 0:
-            t = date_or_none(t)
+        t = date_or_none(t)
+        if t.minute == 0 and t.hour % 2 == 0:
             _, _y = draw_text(
                 draw,
                 (x_start + scale_x(i), y + 12 + chart_h),
-                f'{t:%H:%M}',
+                f'{t.hour}',
                 font=Font.BODY, fill=ColorScheme.BLACK,
-                halign='left', valign='top',
+                halign='center', valign='top',
             )
     y = _y + section_gap
     # Daily forecast
