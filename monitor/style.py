@@ -25,5 +25,6 @@ class ColorScheme:
 
 
 class Font:
-    H1 = ImageFont.truetype('Inter-Bold', 24)
-    BODY = ImageFont.truetype('Inter-Medium', 26)
+    H1 = ImageFont.truetype('Inter-Bold', 18)
+    BODY = ImageFont.truetype('Inter-Medium', 18)
+    BIG = ImageFont.truetype('Inter-Medium', 26)

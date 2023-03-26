@@ -17,7 +17,7 @@ def display_show(quantized_im: Image, output: Literal['epd', 'pil']):
 
         black = quantized_im.point(lambda px: px != ColorScheme.BLACK, mode='1')
         red = quantized_im.point(lambda px: px != ColorScheme.ACCENT, mode='1')
-        epd.display_show(epd.getbuffer(black), epd.getbuffer(red))
+        epd.show(epd.getbuffer(black), epd.getbuffer(red))
         epd.sleep()
 
 

@@ -1,39 +1,22 @@
 import click
-import requests
 
-from datetime import datetime
-from typing import Optional
-from dateutil.parser import parse as parse_date
+from logging import getLogger
+from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw
 
 from .display import display_clear, display_show
+from .draw import draw_time_with_delay, draw_text, draw_image
 from .style import ColorScheme, Font
+from .transport import get_departures
+from .utils import angle_to_compass, date_or_none
+from .weather import (
+    get_description_for_weathercode,
+    get_icon_for_weathercode,
+    get_weather_raw,
+)
 
 
-def date_or_none(datetime_string: Optional[str]) -> Optional[datetime]:
-    if not datetime_string:
-        return None
-
-    return parse_date(datetime_string)
-
-
-def get_departures():
-    API_URL = ('http://transport.opendata.ch/v1/stationboard?'
-               'station=Saint-Genis,%20Champ-Fusy&limit=10')
-    response = requests.get(API_URL)
-    response.raise_for_status()
-
-    departures = response.json()['stationboard']
-    for departure in departures:
-        scheduled = date_or_none(departure['stop']['departure'])
-        exp = date_or_none(departure['stop']['prognosis']['departure'])
-        name = departure['number']
-        to = departure['to']
-
-        if name.startswith('T '):
-            name = name[2:]
-
-        yield name, scheduled, exp, to
+logger = getLogger(__name__)
 
 
 @click.group()
@@ -44,41 +27,199 @@ def entrypoint():
 
 @entrypoint.command('run')
 @click.option(
-    '-o', '--output', type=click.Choice(['pil', 'edp']),
+    '-o', '--output', type=click.Choice(['pil', 'epd']),
     default='pil',
     help='How to display the image',
 )
 def run(output):
-    print('Running monitor')
+    logger.info('Running monitor')
 
-    im = Image.new('P', (800, 480), ColorScheme.WHITE)
+    im = Image.new('P', (480, 800), ColorScheme.WHITE)
     im.putpalette(ColorScheme.make_palette())
     draw = ImageDraw.Draw(im)
 
-    draw.text((10, 10), 'Champ-Fusy Departures', font=Font.H1, fill=ColorScheme.BLACK)
+    # Constants
+    section_gap = 40
+
+    # Transportation info
+    _, y = draw_text(draw, (10, 10), 'Public Transport (Champ-Fusy)', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    line_height = Font.BODY.getsize('X')[1]
+    max_y = 0
     for i, (name, scheduled, exp, to) in enumerate(get_departures()):
-        y = 50 + i * 40
+        if scheduled - datetime.now().astimezone() > timedelta(minutes=120):
+            break
 
-        box_w = 50
+        _y = 40 + i * (line_height + 6)
+        y = max(y, _y)
+
+        box_w, box_h = 32, line_height + 2
         w, h = Font.BODY.getsize(name)
-        draw.rounded_rectangle((10, y, 10 + box_w, y + 32), 16, fill=ColorScheme.BLACK)
-        draw.text((10 + (box_w - w)/2, y), name, font=Font.BODY, fill=ColorScheme.WHITE)
+        draw.rounded_rectangle((10, _y, 10 + box_w, _y + box_h), box_h/2, fill=ColorScheme.BLACK)
+        draw.text((10 + (box_w - w)/2, _y), name, font=Font.BODY, fill=ColorScheme.WHITE)
 
-        draw.text((80, y), to, font=Font.BODY, fill=ColorScheme.BLACK)
-
-        draw.text((500, y), f'{scheduled:%H:%M}', font=Font.BODY, fill=ColorScheme.BLACK)
+        draw.text((50, _y), to, font=Font.BODY, fill=ColorScheme.BLACK)
 
         if exp:
-            #delay = int((exp - scheduled).total_seconds() / 60)
-            #draw.text((600, y), f'{delay:+}\'', font=Font.BODY, fill=Color.ACCENT)
-            draw.text((600, y), f'exp. {exp:%H:%M}', font=Font.BODY, fill=ColorScheme.ACCENT)
+            delay = int((exp - scheduled).total_seconds() / 60)
+            delay_str = f'{delay:+}\''
+        else:
+            delay_str = ''
+        draw_time_with_delay(draw, f'{scheduled:%H:%M}', delay_str, (380, _y))
+
+    y += line_height + section_gap
+
+    # Weather info right now
+    weather = get_weather_raw()
+    _, y = draw_text(draw, (10, y), 'Weather Now', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    section_top = y + 10
+
+    weathercode = weather['current_weather']['weathercode']
+    offset_now = next(
+        i for i, v in enumerate(weather['hourly']['time'])
+        if date_or_none(v) >= datetime.now()
+    )
+    current_humidity = weather['hourly']['relativehumidity_2m'][offset_now]
+    current_temp = weather['current_weather']['temperature']
+    icon = get_icon_for_weathercode(weathercode, 'day')
+    _x, y = draw_image(
+        draw,
+        (10, section_top + 3),
+        icon,
+        fill=ColorScheme.BLACK,
+        valign='top',
+        halign='left',
+    )
+    _x1, _y = draw_text(
+        draw,
+        (_x + 10, section_top + 3),
+        f'{current_temp:.1f}°C',
+        font=Font.BIG,
+        fill=ColorScheme.BLACK,
+        valign='top',
+        halign='left',
+    )
+    _x2, _y = draw_text(
+        draw,
+        (_x + 10, _y + 3),
+        f'{current_humidity:.1f}%',
+        font=Font.BIG,
+        fill=ColorScheme.BLACK,
+        valign='top',
+        halign='left',
+    )
+    _x = max(_x1, _x2) + 30
+    draw_text(
+        draw,
+        (_x, section_top + 3),
+        f'{get_description_for_weathercode(weathercode)}\n'
+        f'Wind: {weather["current_weather"]["windspeed"]:.1f} m/s '
+        f'({angle_to_compass(weather["current_weather"]["winddirection"])})',
+        font=Font.BODY,
+        valign='top',
+        halign='left',
+    )
+
+    y += section_gap
+
+    # Hourly forecast
+    _, y = draw_text(draw, (10, y), 'Temperature and Precipitation', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    chart_w, chart_h = 420, 64
+    x_start = 40
+    y += 15
+
+    temps = weather['hourly']['temperature_2m']
+    times = weather['hourly']['time']
+    rains = weather['hourly']['rain']
+
+    offset_now = next(
+        i for i, v in enumerate(times)
+        if date_or_none(v) >= datetime.now()
+    )
+    offset_in_24h = next(
+        i for i, v in enumerate(times)
+        if date_or_none(v) - datetime.now() >= timedelta(hours=24)
+    )
+    times = times[offset_now:offset_in_24h]
+    temps = temps[offset_now:offset_in_24h]
+    rains = rains[offset_now:offset_in_24h]
+
+    temp_min, temp_max = min(temps), max(temps)
+    rain_max = max(rains) or 10
+
+    def scale_temp(temp):
+        return (temp - temp_min) / (temp_max - temp_min) * chart_h
+
+    def scale_rain(rain):
+        return rain / rain_max * chart_h
+
+    def scale_x(i):
+        return i * chart_w / len(temps)
+
+    # Draw charts
+    xs = [x_start + scale_x(i) for i in range(len(temps))]
+    for x, rain in zip(xs, rains):
+        if not rain:
+            continue
+        rain_h = y + chart_h - scale_rain(rain)
+        draw.rectangle((x, rain_h, x + 5, y + chart_h), fill=ColorScheme.BLACK)
+
+    temps = [y + chart_h - scale_temp(t) for t in temps]
+    draw.line(list(zip(xs, temps)), fill=ColorScheme.ACCENT, width=3)
+
+    char_half = Font.BODY.getsize('X')[1] / 2
+    # Temp min max legend
+    draw.text((10, y - char_half), f'{temp_max:.0f}°', font=Font.BODY, fill=ColorScheme.ACCENT)
+    draw.text((10, y + chart_h - char_half), f'{temp_min:.0f}°', font=Font.BODY, fill=ColorScheme.ACCENT)
+    # Precipitation legend
+    draw_text(draw, (470, y - char_half), f'{rain_max:.0f} mm', font=Font.BODY, fill=ColorScheme.BLACK, halign='right', valign='top')
+    draw_text(draw, (470, y + chart_h - char_half), f'0', font=Font.BODY, fill=ColorScheme.BLACK, halign='right', valign='top')
+
+    _y = y
+    for i, t in enumerate(times):
+        if i % (len(temps) / 6) == 0:
+            t = date_or_none(t)
+            _, _y = draw_text(
+                draw,
+                (x_start + scale_x(i), y + 12 + chart_h),
+                f'{t:%H:%M}',
+                font=Font.BODY, fill=ColorScheme.BLACK,
+                halign='left', valign='top',
+            )
+
+    y = _y + section_gap
+
+    # Daily forecast
+    _, y = draw_text(draw, (10, y), 'Weather This Week', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    cell_w = 460 / 7
+    for i, weathercode in enumerate(weather['daily']['weathercode']):
+        if i > 7:
+            break
+        x = 10 + i * cell_w
+        x_mid = int(x + cell_w / 2)
+
+        date = date_or_none(weather['daily']['time'][i])
+        _, _y = draw_text(draw, (x_mid, y + 10), f'{date:%a}', valign='top')
+
+        icon = get_icon_for_weathercode(weathercode, 'day')
+        _, _y = draw_image(
+            draw,
+            (x_mid, _y + 3),
+            icon,
+            fill=ColorScheme.BLACK,
+            valign='top',
+        )
+
+        hi = f'{weather["daily"]["temperature_2m_max"][i]:.0f}'
+        lo = f'{weather["daily"]["temperature_2m_min"][i]:.0f}'
+        _, _ = draw_text(draw, (x_mid - 2, _y + 2), f'{hi}°', valign='top', halign='right')
+        _, _y = draw_text(draw, (x_mid + 2, _y + 2), f'{lo}°', fill=ColorScheme.ACCENT, valign='top', halign='left')
 
     display_show(im, output)
 
 
 @entrypoint.command('clear')
 @click.option(
-    '-o', '--output', type=click.Choice(['pil', 'edp']),
+    '-o', '--output', type=click.Choice(['pil', 'epd']),
     default='pil',
     help='Which display to clear',
 )
