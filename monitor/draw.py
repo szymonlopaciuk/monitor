@@ -35,17 +35,15 @@ def draw_text(
 
     delta_x, delta_y = 0, 0
 
-    match valign:
-        case 'middle':
-            delta_y = -h / 2
-        case 'bottom':
-            delta_y = -h
+    if valign == 'middle':
+        delta_y = -h / 2
+    elif valign == 'bottom':
+        delta_y = -h
 
-    match halign:
-        case 'center':
-            delta_x = -w / 2
-        case 'right':
-            delta_x = -w
+    if halign == 'center':
+        delta_x = -w / 2
+    elif halign == 'right':
+        delta_x = -w
 
     im.text((x + delta_x, y + delta_y), text, font=font, fill=fill)
     return x + delta_x + w, y + delta_y + h
@@ -64,17 +62,15 @@ def draw_image(
 
     delta_x, delta_y = 0, 0
 
-    match valign:
-        case 'middle':
-            delta_y = -h / 2
-        case 'bottom':
-            delta_y = -h
+    if valign == 'middle':
+        delta_y = -h / 2
+    elif valign == 'bottom':
+        delta_y = -h
 
-    match halign:
-        case 'center':
-            delta_x = -w / 2
-        case 'right':
-            delta_x = -w
+    if halign == 'center':
+        delta_x = -w / 2
+    elif halign == 'right':
+        delta_x = -w
 
     im.bitmap((x + delta_x, y + delta_y), image, fill=fill)
     return x + delta_x + w, y + delta_y + h
