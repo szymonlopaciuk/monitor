@@ -31,7 +31,11 @@ def entrypoint():
     default='pil',
     help='How to display the image',
 )
-def run(output):
+@click.option(
+    '-f', '--flip', default=False, is_flag=True,
+    help='If set, the image will be rotated by 180°',
+)
+def run(output, flip):
     logger.info('Running monitor')
 
     im = Image.new('P', (480, 800), ColorScheme.WHITE)
@@ -213,6 +217,9 @@ def run(output):
         lo = f'{weather["daily"]["temperature_2m_min"][i]:.0f}'
         _, _ = draw_text(draw, (x_mid - 2, _y + 2), f'{hi}°', valign='top', halign='right')
         _, _y = draw_text(draw, (x_mid + 2, _y + 2), f'{lo}°', fill=ColorScheme.ACCENT, valign='top', halign='left')
+
+    if flip:
+        im = im.rotate(180, expand=False)
 
     display_show(im, output)
 
