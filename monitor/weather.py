@@ -117,14 +117,14 @@ def get_description_for_weathercode(code: int) -> str:
     return DESCRIPTION_MAP.get(str(code), 'Unknown')
 
 
-def get_weather_raw():
-    API_URL = ('https://api.open-meteo.com/v1/forecast?'
-               'latitude=46.20&'
-               'longitude=6.15&'
-               'hourly=temperature_2m,relativehumidity_2m,rain&'
-               'daily=weathercode,temperature_2m_max,temperature_2m_min&'
-               'current_weather=true&'
-               'timezone=auto')
-    response = requests.get(API_URL)
+def get_weather_raw(latitude, longitude):
+    api_url = (f'https://api.open-meteo.com/v1/forecast?'
+               f'latitude={latitude}&'
+               f'longitude={longitude}&'
+               f'hourly=temperature_2m,relativehumidity_2m,rain&'
+               f'daily=weathercode,temperature_2m_max,temperature_2m_min&'
+               f'current_weather=true&'
+               f'timezone=auto')
+    response = requests.get(api_url)
     response.raise_for_status()
     return response.json()

@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw
 from .display import display_clear, display_show
 from .draw import draw_time_with_delay, draw_text, draw_image
 from .style import ColorScheme, Font
-from .transport import get_departures
+from .transport import get_transit_data, get_departures
 from .utils import angle_to_compass, date_or_none
 from .weather import (
     get_description_for_weathercode,
@@ -35,7 +35,11 @@ def entrypoint():
     '-f', '--flip', default=False, is_flag=True,
     help='If set, the image will be rotated by 180°',
 )
-def run(output, flip):
+@click.option(
+    '-t', '--transit-stop', required=True,
+    help='Name of the public transport stop or station to monitor',
+)
+def run(output, flip, transit_stop):
     logger.info('Running monitor')
 
     im = Image.new('P', (480, 800), ColorScheme.WHITE)
@@ -46,10 +50,11 @@ def run(output, flip):
     section_gap = 40
 
     # Transportation info
-    _, y = draw_text(draw, (10, 10), 'Public Transport (Champ-Fusy)', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    _, y = draw_text(draw, (10, 10), f'Public Transport ({transit_stop})', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
+    transit_data = get_transit_data(transit_stop)
+
     line_height = Font.BODY.getsize('X')[1]
-    max_y = 0
-    for i, (name, scheduled, exp, to) in enumerate(get_departures()):
+    for i, (name, scheduled, exp, to) in enumerate(get_departures(transit_data)):
         if scheduled - datetime.now().astimezone() > timedelta(minutes=120):
             break
 
@@ -73,7 +78,8 @@ def run(output, flip):
     y += line_height + section_gap
 
     # Weather info right now
-    weather = get_weather_raw()
+    coords = transit_data['station']['coordinate']
+    weather = get_weather_raw(latitude=coords['x'], longitude=coords['y'])
     _, y = draw_text(draw, (10, y), 'Weather Now', font=Font.H1, fill=ColorScheme.BLACK, halign='left', valign='top')
     section_top = y + 10
 
@@ -148,7 +154,7 @@ def run(output, flip):
     rains = rains[offset_now:offset_in_24h]
 
     temp_min, temp_max = min(temps), max(temps)
-    rain_max = max(rains) or 10
+    rain_max = max(rains) or 0.1
 
     def scale_temp(temp):
         return (temp - temp_min) / (temp_max - temp_min) * chart_h
@@ -175,7 +181,7 @@ def run(output, flip):
     draw.text((10, y - char_half), f'{temp_max:.0f}°', font=Font.BODY, fill=ColorScheme.ACCENT)
     draw.text((10, y + chart_h - char_half), f'{temp_min:.0f}°', font=Font.BODY, fill=ColorScheme.ACCENT)
     # Precipitation legend
-    draw_text(draw, (470, y - char_half), f'{rain_max:.0f} mm', font=Font.BODY, fill=ColorScheme.BLACK, halign='right', valign='top')
+    draw_text(draw, (470, y - char_half), f'{rain_max:.1f} mm', font=Font.BODY, fill=ColorScheme.BLACK, halign='right', valign='top')
     draw_text(draw, (470, y + chart_h - char_half), f'0', font=Font.BODY, fill=ColorScheme.BLACK, halign='right', valign='top')
 
     _y = y
