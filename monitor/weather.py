@@ -89,11 +89,12 @@ def get_icon_for_weathercode(code: int, time: Literal['day', 'night']) -> Image:
     96, 99      Thunderstorm with slight and heavy hail
     """
     icon_name = ICON_MAP.get(str(code))
-    match icon_name, time:
-        case (day, _), 'day':
-            icon_name = day
-        case (_, night), 'night':
-            icon_name = night
+
+    if isinstance(icon_name, tuple):
+        if time == 'day':
+            icon_name = icon_name[0]
+        else:
+            icon_name = icon_name[1]
 
     pngs = files(monitor.res.bitmap)
     svgs = files(monitor.res.svg)
