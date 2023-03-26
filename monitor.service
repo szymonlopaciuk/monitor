@@ -1,0 +1,14 @@
+# This is a service that periodically refreshes the monitor.
+[Unit]
+Description=Refresh monitor
+After=network.target
+
+[Service]
+Type=exec
+User=pi
+WorkingDirectory=/home/pi/monitor
+ExecStart=/home/pi/.local/bin/poetry run monitor run -o epd -f -d 600 -t 'Meyrin, Village'
+Restart=always
+
+[Install]
+WantedBy=default.target
