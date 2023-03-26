@@ -31,3 +31,14 @@ def display_clear(output):
         epd.init()
         epd.Clear()
         epd.sleep()
+
+
+def display_sleep(output):
+    if output == 'pil':
+        return
+
+    if output == 'epd':
+        from waveshare_epd.epd7in5b_V2 import EPD  # noqa
+        epd = EPD()
+        epd.init()
+        epd.sleep()
