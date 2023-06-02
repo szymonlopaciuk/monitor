@@ -1,3 +1,5 @@
+> PSA: The main drawing code is a bit cursed. I have had the intention to redo it properly for a while, but as it often is with things that work, I have not got around to it. Maybe the day will come one day, but in the meantime I release it anyway.
+
 # Monitor: an e-Paper smart display script
 
 This is a script that runs on a Raspberry Pi equipped with a Waveshare 7.5B
